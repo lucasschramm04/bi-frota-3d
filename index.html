@@ -43,6 +43,7 @@ aside{padding:13px;overflow:auto}.search,input,select,textarea{width:100%;backgr
 <script>
 const SUPABASE_URL="https://msqhrpkrrivyootwirwe.supabase.co";
 const SUPABASE_KEY="sb_publishable_wUpm36SOISVokV_eaUpEuQ_jkHm2v2u";
+const SITE_URL="https://lucasschramm04.github.io/bi-frota-3d/";
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let data=[],selected=0,mode="";
 const $=id=>document.getElementById(id),fmt=s=>s?new Date(s+"T12:00:00").toLocaleDateString("pt-BR"):"—";
@@ -67,7 +68,7 @@ async function signup(){
 async function recovery(){
   const email=$("email").value.trim();
   if(!email){$("loginMsg").textContent="Informe seu e-mail.";return}
-  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href});
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:SITE_URL});
   $("loginMsg").textContent=error?tradAuthError(error.message):"Enviamos as instruções de recuperação para seu e-mail.";
 }
 function showSignup(){
@@ -90,6 +91,25 @@ function tradAuthError(m){
   if(/password should be at least/i.test(m)) return "A senha precisa ter pelo menos 6 caracteres.";
   return m;
 }
+function showPasswordUpdate(){
+  $("login").classList.remove("hidden");
+  $("authSubtitle").textContent="Defina uma nova senha";
+  $("password").value="";
+  $("authButton").textContent="Salvar nova senha";
+  $("authButton").onclick=updatePassword;
+  $("loginMsg").textContent="";
+}
+async function updatePassword(){
+  const p=$("password").value;
+  if(!p || p.length<6){$("loginMsg").textContent="A nova senha precisa ter pelo menos 6 caracteres.";return}
+  const {error}=await sb.auth.updateUser({password:p});
+  if(error){$("loginMsg").textContent=tradAuthError(error.message);return}
+  $("loginMsg").textContent="Senha alterada com sucesso. Entrando...";
+  setTimeout(async()=>{showApp();await load()},700);
+}
+sb.auth.onAuthStateChange((event)=>{
+  if(event==="PASSWORD_RECOVERY") showPasswordUpdate();
+});
 async function logout(){await sb.auth.signOut();location.reload()}
 async function showApp(){$("login").classList.add("hidden");$("app").classList.remove("hidden")}
 async function load(){let r=await sb.from("carretas").select("*").order("placa");if(r.error){alert(r.error.message);return}data=r.data||[];updateKpi();renderList();if(data.length)select(0)}
@@ -110,5 +130,12 @@ let r=mode==="new"?await sb.from("carretas").insert(v):await sb.from("carretas")
 const mount=$("scene"),scene=new THREE.Scene();scene.background=new THREE.Color(0x09131c);const camera=new THREE.PerspectiveCamera(45,mount.clientWidth/mount.clientHeight,.1,100);camera.position.set(8,5,10);const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(mount.clientWidth,mount.clientHeight);mount.appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xffffff,0x223344,2));let dl=new THREE.DirectionalLight(0xffffff,2);dl.position.set(5,10,5);scene.add(dl);const group=new THREE.Group();scene.add(group);let floor=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshStandardMaterial({color:0x101920}));floor.rotation.x=-Math.PI/2;scene.add(floor);
 function buildModel(s){while(group.children.length)group.remove(group.children[0]);let body=new THREE.MeshStandardMaterial({color:0x1c2932}),front=new THREE.MeshStandardMaterial({color:0xb8c1c7}),wheel=new THREE.MeshStandardMaterial({color:0x111315}),metal=new THREE.MeshStandardMaterial({color:0x5f6c73,metalness:.7});let b=new THREE.Mesh(new THREE.BoxGeometry(7,2.8,2.7),body);b.position.y=2.5;group.add(b);let f=new THREE.Mesh(new THREE.BoxGeometry(.25,2.8,2.7),front);f.position.set(-3.63,2.5,0);group.add(f);let ch=new THREE.Mesh(new THREE.BoxGeometry(7.5,.25,2.8),metal);ch.position.set(.1,.95,0);group.add(ch);[-2.2,0,2.2].forEach(x=>[-1.35,1.35].forEach(z=>{let w=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.38,24),wheel);w.rotation.x=Math.PI/2;w.position.set(x,.55,z);group.add(w)}));let c=s==="OK"?0x3fdc67:s==="Atenção"?0xf2c94c:0xff4d4d;[[-2.9,2.9,1.38],[2.8,2.7,1.38],[-.1,.75,1.45]].forEach(p=>{let q=new THREE.Mesh(new THREE.SphereGeometry(.14,16,16),new THREE.MeshBasicMaterial({color:c}));q.position.set(...p);group.add(q)})}function updateModel(s){buildModel(s)}
 let dragging=false,lx=0,ly=0;renderer.domElement.onpointerdown=e=>{dragging=true;lx=e.clientX;ly=e.clientY};window.onpointerup=()=>dragging=false;window.onpointermove=e=>{if(!dragging)return;group.rotation.y+=(e.clientX-lx)*.008;group.rotation.x+=(e.clientY-ly)*.004;lx=e.clientX;ly=e.clientY};renderer.domElement.onwheel=e=>camera.position.z=Math.max(5,Math.min(18,camera.position.z+e.deltaY*.01));function animate(){requestAnimationFrame(animate);renderer.render(scene,camera)}animate();window.onresize=()=>{camera.aspect=mount.clientWidth/mount.clientHeight;camera.updateProjectionMatrix();renderer.setSize(mount.clientWidth,mount.clientHeight)}
-(async()=>{let s=await sb.auth.getSession();if(s.data.session){showApp();load()}})();
+(async()=>{
+  const hash=location.hash||"";
+  if(hash.includes("type=recovery") || hash.includes("error_code=otp_expired")){
+    if(hash.includes("type=recovery")) showPasswordUpdate();
+  }
+  let s=await sb.auth.getSession();
+  if(s.data.session && !hash.includes("type=recovery")){showApp();load()}
+})();
 </script></body></html>
