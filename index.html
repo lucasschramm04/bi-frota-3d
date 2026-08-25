@@ -39,7 +39,6 @@ aside{padding:13px;overflow:auto}.search,input,select,textarea{width:100%;backgr
 </div>
 <div id="modal" class="modal"><div class="modalbox"><h2 id="modalTitle"></h2><div id="modalBody"></div><div class="actions"><button style="background:#27343d" onclick="closeModal()">Cancelar</button><button onclick="saveModal()">Salvar</button></div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
 const SUPABASE_URL="https://msqhrpkrrivyootwirwe.supabase.co";
 const SUPABASE_KEY="sb_publishable_wUpm36SOISVokV_eaUpEuQ_jkHm2v2u";
@@ -126,113 +125,116 @@ function openMaint(){let x=data[selected];openModal("Registrar manutenção",`<d
 async function saveModal(){if(mode==="maint"){let x=data[selected],v={carreta_id:x.id,data:$("mData").value,tipo:$("mTipo").value,servico:$("mServico").value,custo:Number($("mCusto").value||0),km:Number($("mKm").value||0),observacoes:$("mObs").value};let r=await sb.from("manutencoes").insert(v);if(r.error){alert(r.error.message);return}let u=await sb.from("carretas").update({ultima_manutencao:v.data,tipo_manutencao:v.tipo,observacoes:v.observacoes,km_atual:v.km,status:"OK"}).eq("id",x.id);if(u.error)alert(u.error.message);closeModal();await load();selected=data.findIndex(a=>a.id===x.id);select(selected);return}
 let v={placa:$("fPlaca").value.trim().toUpperCase(),nome:$("fNome").value,status:$("fStatus").value,km_atual:Number($("fKm").value||0),ultima_manutencao:$("fUltima").value||null,proxima_manutencao:$("fProxima").value||null,tipo_manutencao:$("fTipo").value,observacoes:$("fObs").value};
 let r=mode==="new"?await sb.from("carretas").insert(v):await sb.from("carretas").update(v).eq("id",data[selected].id);if(r.error){alert(r.error.message);return}closeModal();let old=data[selected]?.id;await load();if(mode==="new")selected=data.findIndex(a=>a.placa===v.placa);else selected=data.findIndex(a=>a.id===old);select(selected)}
-// 3D
-const mount=$("scene"),scene=new THREE.Scene();scene.background=new THREE.Color(0x09131c);const camera=new THREE.PerspectiveCamera(45,mount.clientWidth/mount.clientHeight,.1,100);camera.position.set(10,5.2,12);camera.lookAt(0,1.5,0);const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(Math.max(1,mount.clientWidth),Math.max(1,mount.clientHeight));mount.appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xffffff,0x223344,2));let dl=new THREE.DirectionalLight(0xffffff,2);dl.position.set(5,10,5);scene.add(dl);const group=new THREE.Group();scene.add(group);let floor=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshStandardMaterial({color:0x101920}));floor.rotation.x=-Math.PI/2;scene.add(floor);
-function buildModel(s){
-  while(group.children.length) group.remove(group.children[0]);
+// VISUAL 3D — V4.1 (sem dependência de WebGL/Three.js)
+const mount=$("scene");
+mount.innerHTML=`
+<style>
+#lsViewer{width:100%;height:100%;min-height:560px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;background:radial-gradient(circle at 50% 45%,#13232e 0,#09131c 65%)}
+#lsSvg{width:94%;height:90%;max-height:620px;user-select:none;touch-action:none}
+#lsViewer .vlabel{position:absolute;bottom:14px;left:14px;color:#8194a2;font-size:11px;background:#08131ddd;padding:7px 9px;border-radius:7px}
+</style>
+<div id="lsViewer">
+<svg id="lsSvg" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet">
+<defs>
+ <linearGradient id="frameG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#718087"/><stop offset="1" stop-color="#27363e"/></linearGradient>
+ <linearGradient id="deckG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#526169"/><stop offset="1" stop-color="#1d2b32"/></linearGradient>
+ <radialGradient id="hubG"><stop offset="0" stop-color="#d7dde0"/><stop offset=".55" stop-color="#7d8b91"/><stop offset="1" stop-color="#39464c"/></radialGradient>
+ <filter id="shadow"><feGaussianBlur stdDeviation="9"/></filter>
+</defs>
+<ellipse cx="510" cy="455" rx="370" ry="32" fill="#000" opacity=".42" filter="url(#shadow)"/>
+<g id="lsModel">
+ <!-- drawbar / kingpin -->
+ <polygon points="165,275 310,255 330,282 180,310" fill="url(#frameG)" stroke="#aab4b8" stroke-width="2"/>
+ <circle cx="292" cy="270" r="30" fill="#56656c" stroke="#aeb7bb" stroke-width="4"/>
+ <circle cx="292" cy="270" r="9" fill="#171f23"/>
 
-  const frameMat = new THREE.MeshStandardMaterial({color:0x4d5a61,metalness:.65,roughness:.3});
-  const railMat  = new THREE.MeshStandardMaterial({color:0x26343b,metalness:.55,roughness:.42});
-  const tireMat  = new THREE.MeshStandardMaterial({color:0x0b0d0f,roughness:.9});
-  const hubMat   = new THREE.MeshStandardMaterial({color:0xb8c0c4,metalness:.8,roughness:.22});
-  const kingMat  = new THREE.MeshStandardMaterial({color:0x6f7c82,metalness:.8,roughness:.25});
-  const lightC = s==="OK"?0x35e06f:s==="Atenção"?0xf2c94c:0xff4d4d;
+ <!-- open LS deck -->
+ <polygon points="235,265 745,225 825,285 285,340" fill="url(#deckG)" stroke="#aab4b8" stroke-width="3"/>
+ <polygon points="255,282 735,246 790,280 300,320" fill="#101a20" stroke="#5f6c73" stroke-width="2"/>
 
-  // Chassi principal aberto — carreta LS, sem baú
-  const mainFrame = new THREE.Mesh(new THREE.BoxGeometry(9.4,.28,2.35),frameMat);
-  mainFrame.position.set(.35,1.55,0);
-  group.add(mainFrame);
+ <!-- cross members -->
+ <g stroke="#819097" stroke-width="9" opacity=".8">
+   <line x1="340" y1="276" x2="355" y2="314"/>
+   <line x1="430" y1="269" x2="445" y2="307"/>
+   <line x1="520" y1="262" x2="535" y2="300"/>
+   <line x1="610" y1="255" x2="625" y2="293"/>
+   <line x1="700" y1="248" x2="715" y2="286"/>
+ </g>
 
-  // Longarinas laterais
-  [-1.02,1.02].forEach(z=>{
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(9.5,.55,.22),railMat);
-    rail.position.set(.35,1.78,z);
-    group.add(rail);
-  });
+ <!-- side rails -->
+ <line x1="245" y1="255" x2="750" y2="216" stroke="#a0abb0" stroke-width="15"/>
+ <line x1="285" y1="338" x2="823" y2="283" stroke="#3e4e55" stroke-width="16"/>
 
-  // Travessas visíveis
-  [-3.2,-1.6,0,1.6,3.2].forEach(x=>{
-    const cross = new THREE.Mesh(new THREE.BoxGeometry(.22,.38,2.2),frameMat);
-    cross.position.set(x,1.55,0);
-    group.add(cross);
-  });
+ <!-- landing legs -->
+ <g stroke="#7f8c92" stroke-width="10">
+   <line x1="355" y1="330" x2="350" y2="410"/>
+   <line x1="395" y1="326" x2="390" y2="405"/>
+ </g>
+ <g fill="#aeb8bc"><rect x="334" y="405" width="35" height="10" rx="3"/><rect x="374" y="400" width="35" height="10" rx="3"/></g>
 
-  // Suporte frontal / cabeçalho baixo
-  const head = new THREE.Mesh(new THREE.BoxGeometry(.35,1.15,2.35),railMat);
-  head.position.set(-4.15,2.0,0);
-  group.add(head);
+ <!-- three axles -->
+ <g stroke="#7c8a90" stroke-width="9">
+   <line x1="520" y1="345" x2="535" y2="420"/>
+   <line x1="615" y1="335" x2="630" y2="412"/>
+   <line x1="710" y1="325" x2="725" y2="402"/>
+ </g>
 
-  // Quinta roda / mesa de acoplamento
-  const plate = new THREE.Mesh(new THREE.CylinderGeometry(.85,.85,.18,32),kingMat);
-  plate.rotation.x=Math.PI/2;
-  plate.position.set(-3.05,1.82,0);
-  group.add(plate);
+ <!-- six tires -->
+ <g fill="#0b0e10" stroke="#4b585e" stroke-width="5">
+   <ellipse cx="515" cy="421" rx="35" ry="48"/><ellipse cx="560" cy="417" rx="28" ry="40"/>
+   <ellipse cx="610" cy="411" rx="35" ry="48"/><ellipse cx="655" cy="407" rx="28" ry="40"/>
+   <ellipse cx="705" cy="402" rx="35" ry="48"/><ellipse cx="750" cy="398" rx="28" ry="40"/>
+ </g>
+ <g fill="url(#hubG)" stroke="#242d31" stroke-width="3">
+   <ellipse cx="515" cy="421" rx="15" ry="22"/><ellipse cx="560" cy="417" rx="12" ry="18"/>
+   <ellipse cx="610" cy="411" rx="15" ry="22"/><ellipse cx="655" cy="407" rx="12" ry="18"/>
+   <ellipse cx="705" cy="402" rx="15" ry="22"/><ellipse cx="750" cy="398" rx="12" ry="18"/>
+ </g>
 
-  // Pino rei
-  const king = new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.5,20),kingMat);
-  king.rotation.x=Math.PI/2;
-  king.position.set(-3.05,1.62,0);
-  group.add(king);
+ <!-- rear bumper -->
+ <polygon points="807,283 835,280 842,326 815,330" fill="#7d8a90" stroke="#b0b8bb" stroke-width="2"/>
 
-  // Pernas de apoio
-  [-.48,.48].forEach(z=>{
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(.18,1.45,.18),frameMat);
-    leg.position.set(-2.0,.9,z);
-    group.add(leg);
-  });
+ <!-- status lamps -->
+ <g id="statusLamps"></g>
 
-  // Três eixos / seis rodas
-  [-1.75,.25,2.25].forEach(x=>{
-    const axle = new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,2.75,16),frameMat);
-    axle.rotation.x=Math.PI/2;
-    axle.position.set(x,.78,0);
-    group.add(axle);
+ <!-- dimension labels -->
+ <g fill="#93a4ad" font-size="16" font-family="Arial">
+   <text x="465" y="190">CARRETA LS • CHASSI ABERTO</text>
+   <text x="465" y="510" text-anchor="middle">3 EIXOS • 6 RODAS</text>
+ </g>
+</g>
+</svg>
+<div class="vlabel">🖱️ Arraste para girar • roda para zoom</div>
+</div>`;
 
-    [-1.38,1.38].forEach(z=>{
-      const tire = new THREE.Mesh(new THREE.CylinderGeometry(.63,.63,.42,32),tireMat);
-      tire.rotation.x=Math.PI/2;
-      tire.position.set(x,.78,z);
-      group.add(tire);
+const svg=$("lsSvg"), model=$("lsModel");
+let svgRot=0, svgScale=1, drag=false, sx=0;
 
-      const hub = new THREE.Mesh(new THREE.CylinderGeometry(.24,.24,.45,24),hubMat);
-      hub.rotation.x=Math.PI/2;
-      hub.position.set(x,.78,z);
-      group.add(hub);
-    });
-  });
-
-  // Para-choque traseiro e protetores laterais
-  const bumper = new THREE.Mesh(new THREE.BoxGeometry(.28,.48,2.5),frameMat);
-  bumper.position.set(4.95,1.25,0);
-  group.add(bumper);
-
-  [-1.18,1.18].forEach(z=>{
-    const guard = new THREE.Mesh(new THREE.BoxGeometry(8.2,.16,.16),frameMat);
-    guard.position.set(.45,1.05,z);
-    group.add(guard);
-  });
-
-  // Luzes de status
-  [[-3.75,2.55,1.16],[4.72,1.55,1.16],[-.8,1.95,1.18]].forEach(p=>{
-    const lamp = new THREE.Mesh(
-      new THREE.SphereGeometry(.16,20,20),
-      new THREE.MeshBasicMaterial({color:lightC})
-    );
-    lamp.position.set(p[0],p[1],p[2]);
-    group.add(lamp);
-  });
-
-  // Barra de engate frontal
-  const drawbar = new THREE.Mesh(new THREE.BoxGeometry(1.6,.22,.35),frameMat);
-  drawbar.position.set(-4.8,1.55,0);
-  group.add(drawbar);
-
-  // Inclinação para leitura 3D
-  group.rotation.y=-0.5;
-  group.rotation.x=0.08;
+function updateModel(status){
+  const c=status==="OK"?"#35e06f":status==="Atenção"?"#f2c94c":"#ff4d4d";
+  $("statusLamps").innerHTML=`
+    <circle cx="305" cy="248" r="10" fill="${c}"/>
+    <circle cx="812" cy="282" r="10" fill="${c}"/>
+    <circle cx="690" cy="340" r="10" fill="${c}"/>
+  `;
+  applyView();
 }
-function updateModel(s){buildModel(s); camera.position.set(10,5.2,12); camera.lookAt(0,1.5,0)}
-let dragging=false,lx=0,ly=0;renderer.domElement.onpointerdown=e=>{dragging=true;lx=e.clientX;ly=e.clientY};window.onpointerup=()=>dragging=false;window.onpointermove=e=>{if(!dragging)return;group.rotation.y+=(e.clientX-lx)*.008;group.rotation.x+=(e.clientY-ly)*.004;lx=e.clientX;ly=e.clientY};renderer.domElement.onwheel=e=>camera.position.z=Math.max(5,Math.min(18,camera.position.z+e.deltaY*.01));function animate(){requestAnimationFrame(animate);renderer.render(scene,camera)}animate();window.onresize=()=>{camera.aspect=mount.clientWidth/mount.clientHeight;camera.updateProjectionMatrix();renderer.setSize(mount.clientWidth,mount.clientHeight)}
+function applyView(){
+  model.setAttribute("transform",`translate(500 280) rotate(${svgRot}) scale(${svgScale}) translate(-500 -280)`);
+}
+svg.onpointerdown=e=>{drag=true;sx=e.clientX;svg.setPointerCapture?.(e.pointerId)};
+svg.onpointerup=()=>drag=false;
+svg.onpointercancel=()=>drag=false;
+svg.onpointermove=e=>{
+  if(!drag)return;
+  svgRot+=(e.clientX-sx)*.25;sx=e.clientX;applyView();
+};
+svg.onwheel=e=>{
+  e.preventDefault();
+  svgScale=Math.max(.72,Math.min(1.35,svgScale+(e.deltaY<0?.05:-.05)));
+  applyView();
+};
+
 (async()=>{
   const hash=location.hash||"";
   if(hash.includes("type=recovery") || hash.includes("error_code=otp_expired")){
