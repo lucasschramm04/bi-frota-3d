@@ -19,7 +19,18 @@ aside{padding:13px;overflow:auto}.search,input,select,textarea{width:100%;backgr
 </style>
 </head>
 <body>
-<div id="login"><div class="loginbox"><h2>🚛 BI Frota 3D</h2><div class="sub">V3 Online — acesso ao banco da frota</div><div class="field"><label>E-MAIL</label><input id="email" type="email" placeholder="seu@email.com"></div><div class="field"><label>SENHA</label><input id="password" type="password" placeholder="Sua senha"></div><button style="width:100%" onclick="login()">Entrar</button><div id="loginMsg" class="muted" style="margin-top:10px"></div></div></div>
+<div id="login"><div class="loginbox">
+<h2>🚛 BI Frota 3D</h2>
+<div class="sub" id="authSubtitle">V3 Online — acesso ao banco da frota</div>
+<div class="field"><label>E-MAIL</label><input id="email" type="email" placeholder="seu@email.com"></div>
+<div class="field"><label>SENHA</label><input id="password" type="password" placeholder="Sua senha"></div>
+<button id="authButton" style="width:100%" onclick="login()">Entrar</button>
+<div style="display:flex;gap:8px;margin-top:10px">
+<button style="flex:1;background:#27343d" onclick="showSignup()">Criar conta</button>
+<button style="flex:1;background:#27343d" onclick="showRecovery()">Esqueci a senha</button>
+</div>
+<div id="loginMsg" class="muted" style="margin-top:10px"></div>
+</div></div>
 <div class="app hidden" id="app">
 <header><div><h1>🚛 BI MANUTENÇÃO DE FROTA 3D</h1><div class="sub">Banco online • Supabase</div></div><div class="kpis"><div class="kpi"><span>CARRETAS</span><b id="total">0</b></div><div class="kpi"><span>EM DIA</span><b class="green" id="ok">0</b></div><div class="kpi"><span>ATENÇÃO</span><b class="yellow" id="att">0</b></div><div class="kpi"><span>MANUT.</span><b class="red" id="late">0</b></div></div><div class="tools"><button onclick="openNew()">＋ Carreta</button><button onclick="openEdit()">✏️ Editar</button><button onclick="openMaint()">🔧 Manutenção</button><button onclick="logout()" style="background:#27343d">Sair</button></div></header>
 <aside><b>FROTA</b><input id="search" class="search" placeholder="Buscar placa..."><div id="fleet" class="fleet"></div><div class="footer">As alterações são salvas no banco online.</div></aside>
@@ -36,7 +47,49 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let data=[],selected=0,mode="";
 const $=id=>document.getElementById(id),fmt=s=>s?new Date(s+"T12:00:00").toLocaleDateString("pt-BR"):"—";
 function cls(s){return s==="OK"?"green":s==="Atenção"?"yellow":"red"}
-async function login(){let {error}=await sb.auth.signInWithPassword({email:$("email").value,password:$("password").value});if(error){$("loginMsg").textContent=error.message;return}showApp();await load()}
+async function login(){
+  const email=$("email").value.trim(), password=$("password").value;
+  if(!email||!password){$("loginMsg").textContent="Informe e-mail e senha.";return}
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  if(error){$("loginMsg").textContent=tradAuthError(error.message);return}
+  $("loginMsg").textContent="";
+  showApp(); await load();
+}
+async function signup(){
+  const email=$("email").value.trim(), password=$("password").value;
+  if(!email||!password){$("loginMsg").textContent="Informe e-mail e senha.";return}
+  if(password.length<6){$("loginMsg").textContent="A senha precisa ter pelo menos 6 caracteres.";return}
+  const {data,error}=await sb.auth.signUp({email,password});
+  if(error){$("loginMsg").textContent=tradAuthError(error.message);return}
+  if(data.session){$("loginMsg").textContent="Conta criada. Entrando...";showApp();await load();}
+  else $("loginMsg").textContent="Conta criada. Verifique seu e-mail para confirmar a conta e depois entre.";
+}
+async function recovery(){
+  const email=$("email").value.trim();
+  if(!email){$("loginMsg").textContent="Informe seu e-mail.";return}
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href});
+  $("loginMsg").textContent=error?tradAuthError(error.message):"Enviamos as instruções de recuperação para seu e-mail.";
+}
+function showSignup(){
+  $("authSubtitle").textContent="Crie seu acesso ao BI";
+  $("authButton").textContent="Criar conta";
+  $("authButton").onclick=signup;
+  $("loginMsg").textContent="";
+}
+function showRecovery(){
+  $("authSubtitle").textContent="Recuperar acesso";
+  $("authButton").textContent="Enviar recuperação";
+  $("authButton").onclick=recovery;
+  $("password").value="";
+  $("loginMsg").textContent="";
+}
+function tradAuthError(m){
+  if(/invalid login credentials/i.test(m)) return "E-mail ou senha incorretos.";
+  if(/email not confirmed/i.test(m)) return "Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada.";
+  if(/user already registered/i.test(m)) return "Este e-mail já possui uma conta. Use Entrar ou Esqueci a senha.";
+  if(/password should be at least/i.test(m)) return "A senha precisa ter pelo menos 6 caracteres.";
+  return m;
+}
 async function logout(){await sb.auth.signOut();location.reload()}
 async function showApp(){$("login").classList.add("hidden");$("app").classList.remove("hidden")}
 async function load(){let r=await sb.from("carretas").select("*").order("placa");if(r.error){alert(r.error.message);return}data=r.data||[];updateKpi();renderList();if(data.length)select(0)}
