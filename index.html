@@ -11,7 +11,7 @@ header,aside,.main,.panel,.modalbox{background:#0c151e;border:1px solid #1c2d39;
 header{grid-column:1/4;display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
 h1{font-size:19px;margin:0}.sub,.muted{color:#8194a2;font-size:12px}.tools{display:flex;gap:6px;flex-wrap:wrap}.kpis{display:flex;gap:6px}.kpi{background:#101c26;border:1px solid #223441;border-radius:8px;padding:7px 11px;min-width:75px}.kpi span{font-size:9px;color:#8194a2}.kpi b{display:block;font-size:17px}
 aside{padding:13px;overflow:auto}.search,input,select,textarea{width:100%;background:#081119;border:1px solid #2b3d49;color:#fff;border-radius:7px;padding:9px}.search{margin:10px 0}.fleet{display:flex;flex-direction:column;gap:6px}.truck{padding:10px;background:#101c26;border:1px solid transparent;border-radius:8px;display:flex;justify-content:space-between;cursor:pointer}.truck.active{border-color:#2d79ff}.green{color:#50d46a}.yellow{color:#f1c84b}.red{color:#ff5a5a}.badge{font-size:9px;padding:4px 6px;border-radius:20px;background:#17242d}
-.main{position:relative;overflow:hidden;min-height:600px}.hint{position:absolute;z-index:2;top:12px;left:14px;background:#08131ddd;padding:9px;border-radius:8px;font-size:11px;color:#a7b7c2}.scene{height:100%;min-height:600px}
+.main{position:relative;overflow:hidden;min-height:600px;background:#09131c}.hint{position:absolute;z-index:2;top:12px;left:14px;background:#08131ddd;padding:9px;border-radius:8px;font-size:11px;color:#a7b7c2}.scene{height:100%;min-height:600px}
 .panel{padding:15px;overflow:auto}.title{font-size:22px;font-weight:bold}.status{font-size:10px;margin-left:6px;padding:5px 7px;border-radius:15px;background:#3b300b}.grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:14px 0}.card{background:#101c26;border:1px solid #1e303c;border-radius:7px;padding:10px}.label{font-size:9px;color:#8194a2}.value{font-weight:bold;margin-top:4px;font-size:13px}.section{border-top:1px solid #1b2a34;padding-top:12px;margin-top:12px}.component{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #18262f;font-size:12px}.hist{padding:9px;background:#101c26;border-radius:7px;margin-top:6px;font-size:11px}.footer{font-size:10px;color:#617583;margin-top:10px}.notice{padding:10px;border-radius:7px;background:#102232;color:#b8c9d4;font-size:11px;margin:10px 0}
 .modal{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;padding:15px;z-index:20}.modal.show{display:flex}.modalbox{width:min(650px,100%);padding:18px;max-height:90vh;overflow:auto}.modalbox h2{margin-top:0}.field{margin:9px 0}.field label{display:block;font-size:10px;color:#8ca0ad;margin-bottom:4px}.row{display:flex;gap:7px}.row>*{flex:1}.actions{display:flex;justify-content:flex-end;gap:7px;margin-top:15px}
 #login{position:fixed;inset:0;background:#071018;display:flex;align-items:center;justify-content:center;z-index:50}.loginbox{width:min(420px,92%);background:#0c151e;border:1px solid #1c2d39;border-radius:14px;padding:25px}.loginbox h2{margin-top:0}.hidden{display:none!important}
@@ -127,8 +127,111 @@ async function saveModal(){if(mode==="maint"){let x=data[selected],v={carreta_id
 let v={placa:$("fPlaca").value.trim().toUpperCase(),nome:$("fNome").value,status:$("fStatus").value,km_atual:Number($("fKm").value||0),ultima_manutencao:$("fUltima").value||null,proxima_manutencao:$("fProxima").value||null,tipo_manutencao:$("fTipo").value,observacoes:$("fObs").value};
 let r=mode==="new"?await sb.from("carretas").insert(v):await sb.from("carretas").update(v).eq("id",data[selected].id);if(r.error){alert(r.error.message);return}closeModal();let old=data[selected]?.id;await load();if(mode==="new")selected=data.findIndex(a=>a.placa===v.placa);else selected=data.findIndex(a=>a.id===old);select(selected)}
 // 3D
-const mount=$("scene"),scene=new THREE.Scene();scene.background=new THREE.Color(0x09131c);const camera=new THREE.PerspectiveCamera(45,mount.clientWidth/mount.clientHeight,.1,100);camera.position.set(8,5,10);const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(mount.clientWidth,mount.clientHeight);mount.appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xffffff,0x223344,2));let dl=new THREE.DirectionalLight(0xffffff,2);dl.position.set(5,10,5);scene.add(dl);const group=new THREE.Group();scene.add(group);let floor=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshStandardMaterial({color:0x101920}));floor.rotation.x=-Math.PI/2;scene.add(floor);
-function buildModel(s){while(group.children.length)group.remove(group.children[0]);let body=new THREE.MeshStandardMaterial({color:0x1c2932}),front=new THREE.MeshStandardMaterial({color:0xb8c1c7}),wheel=new THREE.MeshStandardMaterial({color:0x111315}),metal=new THREE.MeshStandardMaterial({color:0x5f6c73,metalness:.7});let b=new THREE.Mesh(new THREE.BoxGeometry(7,2.8,2.7),body);b.position.y=2.5;group.add(b);let f=new THREE.Mesh(new THREE.BoxGeometry(.25,2.8,2.7),front);f.position.set(-3.63,2.5,0);group.add(f);let ch=new THREE.Mesh(new THREE.BoxGeometry(7.5,.25,2.8),metal);ch.position.set(.1,.95,0);group.add(ch);[-2.2,0,2.2].forEach(x=>[-1.35,1.35].forEach(z=>{let w=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.38,24),wheel);w.rotation.x=Math.PI/2;w.position.set(x,.55,z);group.add(w)}));let c=s==="OK"?0x3fdc67:s==="Atenção"?0xf2c94c:0xff4d4d;[[-2.9,2.9,1.38],[2.8,2.7,1.38],[-.1,.75,1.45]].forEach(p=>{let q=new THREE.Mesh(new THREE.SphereGeometry(.14,16,16),new THREE.MeshBasicMaterial({color:c}));q.position.set(...p);group.add(q)})}function updateModel(s){buildModel(s)}
+const mount=$("scene"),scene=new THREE.Scene();scene.background=new THREE.Color(0x09131c);const camera=new THREE.PerspectiveCamera(45,mount.clientWidth/mount.clientHeight,.1,100);camera.position.set(10,5.2,12);camera.lookAt(0,1.5,0);const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(Math.max(1,mount.clientWidth),Math.max(1,mount.clientHeight));mount.appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xffffff,0x223344,2));let dl=new THREE.DirectionalLight(0xffffff,2);dl.position.set(5,10,5);scene.add(dl);const group=new THREE.Group();scene.add(group);let floor=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshStandardMaterial({color:0x101920}));floor.rotation.x=-Math.PI/2;scene.add(floor);
+function buildModel(s){
+  while(group.children.length) group.remove(group.children[0]);
+
+  const frameMat = new THREE.MeshStandardMaterial({color:0x4d5a61,metalness:.65,roughness:.3});
+  const railMat  = new THREE.MeshStandardMaterial({color:0x26343b,metalness:.55,roughness:.42});
+  const tireMat  = new THREE.MeshStandardMaterial({color:0x0b0d0f,roughness:.9});
+  const hubMat   = new THREE.MeshStandardMaterial({color:0xb8c0c4,metalness:.8,roughness:.22});
+  const kingMat  = new THREE.MeshStandardMaterial({color:0x6f7c82,metalness:.8,roughness:.25});
+  const lightC = s==="OK"?0x35e06f:s==="Atenção"?0xf2c94c:0xff4d4d;
+
+  // Chassi principal aberto — carreta LS, sem baú
+  const mainFrame = new THREE.Mesh(new THREE.BoxGeometry(9.4,.28,2.35),frameMat);
+  mainFrame.position.set(.35,1.55,0);
+  group.add(mainFrame);
+
+  // Longarinas laterais
+  [-1.02,1.02].forEach(z=>{
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(9.5,.55,.22),railMat);
+    rail.position.set(.35,1.78,z);
+    group.add(rail);
+  });
+
+  // Travessas visíveis
+  [-3.2,-1.6,0,1.6,3.2].forEach(x=>{
+    const cross = new THREE.Mesh(new THREE.BoxGeometry(.22,.38,2.2),frameMat);
+    cross.position.set(x,1.55,0);
+    group.add(cross);
+  });
+
+  // Suporte frontal / cabeçalho baixo
+  const head = new THREE.Mesh(new THREE.BoxGeometry(.35,1.15,2.35),railMat);
+  head.position.set(-4.15,2.0,0);
+  group.add(head);
+
+  // Quinta roda / mesa de acoplamento
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(.85,.85,.18,32),kingMat);
+  plate.rotation.x=Math.PI/2;
+  plate.position.set(-3.05,1.82,0);
+  group.add(plate);
+
+  // Pino rei
+  const king = new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.5,20),kingMat);
+  king.rotation.x=Math.PI/2;
+  king.position.set(-3.05,1.62,0);
+  group.add(king);
+
+  // Pernas de apoio
+  [-.48,.48].forEach(z=>{
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(.18,1.45,.18),frameMat);
+    leg.position.set(-2.0,.9,z);
+    group.add(leg);
+  });
+
+  // Três eixos / seis rodas
+  [-1.75,.25,2.25].forEach(x=>{
+    const axle = new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,2.75,16),frameMat);
+    axle.rotation.x=Math.PI/2;
+    axle.position.set(x,.78,0);
+    group.add(axle);
+
+    [-1.38,1.38].forEach(z=>{
+      const tire = new THREE.Mesh(new THREE.CylinderGeometry(.63,.63,.42,32),tireMat);
+      tire.rotation.x=Math.PI/2;
+      tire.position.set(x,.78,z);
+      group.add(tire);
+
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(.24,.24,.45,24),hubMat);
+      hub.rotation.x=Math.PI/2;
+      hub.position.set(x,.78,z);
+      group.add(hub);
+    });
+  });
+
+  // Para-choque traseiro e protetores laterais
+  const bumper = new THREE.Mesh(new THREE.BoxGeometry(.28,.48,2.5),frameMat);
+  bumper.position.set(4.95,1.25,0);
+  group.add(bumper);
+
+  [-1.18,1.18].forEach(z=>{
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(8.2,.16,.16),frameMat);
+    guard.position.set(.45,1.05,z);
+    group.add(guard);
+  });
+
+  // Luzes de status
+  [[-3.75,2.55,1.16],[4.72,1.55,1.16],[-.8,1.95,1.18]].forEach(p=>{
+    const lamp = new THREE.Mesh(
+      new THREE.SphereGeometry(.16,20,20),
+      new THREE.MeshBasicMaterial({color:lightC})
+    );
+    lamp.position.set(p[0],p[1],p[2]);
+    group.add(lamp);
+  });
+
+  // Barra de engate frontal
+  const drawbar = new THREE.Mesh(new THREE.BoxGeometry(1.6,.22,.35),frameMat);
+  drawbar.position.set(-4.8,1.55,0);
+  group.add(drawbar);
+
+  // Inclinação para leitura 3D
+  group.rotation.y=-0.5;
+  group.rotation.x=0.08;
+}
+function updateModel(s){buildModel(s); camera.position.set(10,5.2,12); camera.lookAt(0,1.5,0)}
 let dragging=false,lx=0,ly=0;renderer.domElement.onpointerdown=e=>{dragging=true;lx=e.clientX;ly=e.clientY};window.onpointerup=()=>dragging=false;window.onpointermove=e=>{if(!dragging)return;group.rotation.y+=(e.clientX-lx)*.008;group.rotation.x+=(e.clientY-ly)*.004;lx=e.clientX;ly=e.clientY};renderer.domElement.onwheel=e=>camera.position.z=Math.max(5,Math.min(18,camera.position.z+e.deltaY*.01));function animate(){requestAnimationFrame(animate);renderer.render(scene,camera)}animate();window.onresize=()=>{camera.aspect=mount.clientWidth/mount.clientHeight;camera.updateProjectionMatrix();renderer.setSize(mount.clientWidth,mount.clientHeight)}
 (async()=>{
   const hash=location.hash||"";
